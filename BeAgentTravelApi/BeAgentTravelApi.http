@@ -1,0 +1,6 @@
+@BeAgentTravelApi_HostAddress = http://localhost:5233
+
+GET {{BeAgentTravelApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
