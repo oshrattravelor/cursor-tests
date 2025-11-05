@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeAgentTravelApi", "BeAgentTravelApi\BeAgentTravelApi.csproj", "{782A26AE-DD27-457E-94E5-B6E392F73C2C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Adapter.Amadeus", "Adapter.Amadeus\Adapter.Amadeus.csproj", "{0972BF0D-948E-467A-8D6E-462E2F87768A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{782A26AE-DD27-457E-94E5-B6E392F73C2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{782A26AE-DD27-457E-94E5-B6E392F73C2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{782A26AE-DD27-457E-94E5-B6E392F73C2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{782A26AE-DD27-457E-94E5-B6E392F73C2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0972BF0D-948E-467A-8D6E-462E2F87768A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0972BF0D-948E-467A-8D6E-462E2F87768A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0972BF0D-948E-467A-8D6E-462E2F87768A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0972BF0D-948E-467A-8D6E-462E2F87768A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
