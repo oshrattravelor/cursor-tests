@@ -1,0 +1,118 @@
+### Variables
+@baseUrl = https://localhost:7000
+@apiUrl = {{baseUrl}}/api
+
+### Health Check (if you add one)
+GET {{baseUrl}}/health
+
+### Get Sample Flight Search Request
+GET {{apiUrl}}/flights/sample-request
+Accept: application/json
+
+###
+
+### Search One-Way Flights
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "NYC",
+  "destinationLocationCode": "LAX",
+  "departureDate": "2024-12-15",
+  "adults": 1,
+  "travelClass": "ECONOMY",
+  "nonStop": false,
+  "currencyCode": "USD",
+  "maxResults": 5
+}
+
+###
+
+### Search Round-Trip Flights
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "JFK",
+  "destinationLocationCode": "LHR",
+  "departureDate": "2024-12-15",
+  "returnDate": "2024-12-22",
+  "adults": 2,
+  "children": 1,
+  "travelClass": "BUSINESS",
+  "nonStop": false,
+  "currencyCode": "USD",
+  "maxResults": 10
+}
+
+###
+
+### Search Non-Stop Flights Only
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "LAX",
+  "destinationLocationCode": "SFO",
+  "departureDate": "2024-12-01",
+  "adults": 1,
+  "travelClass": "ECONOMY",
+  "nonStop": true,
+  "currencyCode": "USD",
+  "maxResults": 10
+}
+
+###
+
+### Search Flights with Infants
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "ORD",
+  "destinationLocationCode": "MIA",
+  "departureDate": "2024-12-20",
+  "returnDate": "2024-12-27",
+  "adults": 2,
+  "infants": 1,
+  "travelClass": "ECONOMY",
+  "currencyCode": "USD",
+  "maxResults": 10
+}
+
+###
+
+### Search Premium/First Class Flights
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "DXB",
+  "destinationLocationCode": "SIN",
+  "departureDate": "2024-12-10",
+  "returnDate": "2024-12-17",
+  "adults": 1,
+  "travelClass": "FIRST",
+  "currencyCode": "USD",
+  "maxResults": 10
+}
+
+###
+
+### Search International Flights (Europe)
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "originLocationCode": "PAR",
+  "destinationLocationCode": "MAD",
+  "departureDate": "2024-11-25",
+  "returnDate": "2024-11-30",
+  "adults": 2,
+  "travelClass": "ECONOMY",
+  "currencyCode": "EUR",
+  "maxResults": 15
+}
+
+###
+
