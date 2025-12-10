@@ -196,3 +196,18 @@ Content-Type: application/json
 
 ###
 
+### Price Flight Offers (Get Confirmed Pricing with Detailed Fare Rules)
+### Note: First perform a flight search, then use the flight offers from the response
+### Replace the flightOffers array below with actual flight offers from a search response
+POST {{apiUrl}}/flights/price
+Content-Type: application/json
+
+{
+  "data": {
+    "type": "flight-offers-pricing",
+    "flightOffers": []
+  }
+}
+
+###
+

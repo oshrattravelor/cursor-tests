@@ -254,5 +254,66 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
 
         return queryParams.ToString() ?? string.Empty;
     }
+
+    public async Task<FlightOffersPricingResponse> PriceFlightOffersAsync(
+        List<FlightOffer> flightOffers, 
+        CancellationToken cancellationToken = default)
+    {
+        if (flightOffers == null || flightOffers.Count == 0)
+        {
+            throw new ArgumentException("At least one flight offer is required for pricing", nameof(flightOffers));
+        }
+
+        // Get access token
+        var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
+
+        // Build the request body
+        var requestBody = new FlightOffersPricingRequest
+        {
+            Data = new FlightOffersPricingData
+            {
+                Type = "flight-offers-pricing",
+                FlightOffers = flightOffers
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        // Add query parameter to include detailed fare rules
+        var requestUri = "/v1/shopping/flight-offers/pricing?include=detailed-fare-rules";
+        
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        {
+            Content = content
+        };
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+        // Send request
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"Flight offers pricing failed. Status: {response.StatusCode}, Error: {errorContent}");
+        }
+
+        // Parse response
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        var pricingResponse = JsonSerializer.Deserialize<FlightOffersPricingResponse>(
+            responseContent, 
+            new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true 
+            });
+
+        if (pricingResponse == null)
+        {
+            throw new InvalidOperationException("Failed to deserialize flight offers pricing response");
+        }
+
+        return pricingResponse;
+    }
 }
 

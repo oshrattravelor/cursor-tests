@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Adapter.Amadeus.Models.FlightSearch;
 using Adapter.Amadeus.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -247,6 +248,70 @@ public class FlightsController : ControllerBase
                 MaxResults = 10
             };
             return Ok(new { tripType = "RoundTrip", sample });
+        }
+    }
+
+    /// <summary>
+    /// Get confirmed pricing and detailed fare rules for flight offers
+    /// This endpoint should be called after a flight search to get final pricing and fare conditions.
+    /// The request automatically includes detailed fare rules (include=detailed-fare-rules parameter).
+    /// </summary>
+    /// <param name="request">Request containing flight offers to price</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight offers with confirmed pricing and detailed fare rules</returns>
+    [HttpPost("price")]
+    [ProducesResponseType(typeof(FlightOffersPricingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> PriceFlightOffers(
+        [FromBody] FlightOffersPricingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (request?.Data?.FlightOffers == null || request.Data.FlightOffers.Count == 0)
+            {
+                return BadRequest(new { error = "At least one flight offer is required for pricing" });
+            }
+
+            _logger.LogInformation(
+                "Pricing {Count} flight offers",
+                request.Data.FlightOffers.Count);
+
+            var result = await _flightSearchService.PriceFlightOffersAsync(
+                request.Data.FlightOffers, 
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Pricing completed. Returned {Count} priced offers",
+                result.Data?.FlightOffers?.Count ?? 0);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Pricing completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for pricing");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while pricing flight offers");
+            return StatusCode(StatusCodes.Status502BadGateway, 
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while pricing flight offers");
+            return StatusCode(StatusCodes.Status500InternalServerError, 
+                new { error = "An unexpected error occurred", details = ex.Message });
         }
     }
 }
