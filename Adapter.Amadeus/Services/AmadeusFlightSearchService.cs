@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Web;
 using Adapter.Amadeus.Configuration;
@@ -11,6 +12,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
     private readonly HttpClient _httpClient;
     private readonly IAmadeusAuthService _authService;
     private readonly AmadeusSettings _settings;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public AmadeusFlightSearchService(
         HttpClient httpClient, 
@@ -26,6 +28,12 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             : "https://test.api.amadeus.com";
         
         _httpClient.BaseAddress = new Uri(baseUrl);
+        
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        };
     }
 
     public async Task<FlightSearchResponse> SearchFlightsAsync(
@@ -35,13 +43,21 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         // Get access token
         var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
 
-        // Build query parameters
-        var queryParams = BuildQueryParameters(request);
-        var requestUri = $"/v2/shopping/flight-offers?{queryParams}";
-
-        // Create HTTP request
-        var httpRequest = new HttpRequestMessage(HttpMethod.Get, requestUri);
-        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        // Determine trip type
+        var tripType = request.GetTripType();
+        
+        HttpRequestMessage httpRequest;
+        
+        if (tripType == TripType.MultiCity)
+        {
+            // Multi-city requires POST with JSON body
+            httpRequest = BuildMultiCityRequest(request, accessToken);
+        }
+        else
+        {
+            // One-way and round-trip use GET with query parameters
+            httpRequest = BuildSimpleRequest(request, tripType, accessToken);
+        }
 
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
@@ -70,15 +86,147 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         return flightSearchResponse;
     }
 
-    private string BuildQueryParameters(FlightSearchRequest request)
+    private HttpRequestMessage BuildSimpleRequest(
+        FlightSearchRequest request, 
+        TripType tripType, 
+        string accessToken)
+    {
+        var queryParams = BuildQueryParameters(request, tripType);
+        var requestUri = $"/v2/shopping/flight-offers?{queryParams}";
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+        return httpRequest;
+    }
+
+    private HttpRequestMessage BuildMultiCityRequest(
+        FlightSearchRequest request, 
+        string accessToken)
+    {
+        if (request.Segments == null || request.Segments.Count == 0)
+        {
+            throw new ArgumentException("Segments are required for multi-city flights");
+        }
+
+        // Build the request body for multi-city
+        var requestBody = new
+        {
+            originDestinations = request.Segments.Select(s => new
+            {
+                id = (request.Segments.IndexOf(s) + 1).ToString(),
+                originLocationCode = s.OriginLocationCode,
+                destinationLocationCode = s.DestinationLocationCode,
+                departureDateTimeRange = new
+                {
+                    date = s.DepartureDate.ToString("yyyy-MM-dd")
+                }
+            }).ToArray(),
+            travelers = BuildTravelers(request),
+            sources = new[] { "GDS" },
+            searchCriteria = new
+            {
+                maxFlightOffers = request.MaxResults,
+                flightFilters = new
+                {
+                    cabinRestrictions = request.TravelClass != null ? new[]
+                    {
+                        new { cabin = request.TravelClass }
+                    } : null,
+                    carrierRestrictions = (object?)null,
+                    connectionRestriction = request.NonStop ? new
+                    {
+                        maxNumberOfConnections = 0
+                    } : null
+                }
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v2/shopping/flight-offers")
+        {
+            Content = content
+        };
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+
+        return httpRequest;
+    }
+
+    private object[] BuildTravelers(FlightSearchRequest request)
+    {
+        var travelers = new List<object>();
+        
+        // Add adults
+        for (int i = 0; i < request.Adults; i++)
+        {
+            travelers.Add(new
+            {
+                id = (travelers.Count + 1).ToString(),
+                travelerType = "ADULT"
+            });
+        }
+        
+        // Add children
+        if (request.Children.HasValue)
+        {
+            for (int i = 0; i < request.Children.Value; i++)
+            {
+                travelers.Add(new
+                {
+                    id = (travelers.Count + 1).ToString(),
+                    travelerType = "CHILD"
+                });
+            }
+        }
+        
+        // Add infants
+        if (request.Infants.HasValue)
+        {
+            for (int i = 0; i < request.Infants.Value; i++)
+            {
+                travelers.Add(new
+                {
+                    id = (travelers.Count + 1).ToString(),
+                    travelerType = "HELD_INFANT",
+                    associatedAdultId = (i + 1).ToString() // Infants must be associated with an adult
+                });
+            }
+        }
+        
+        return travelers.ToArray();
+    }
+
+    private string BuildQueryParameters(FlightSearchRequest request, TripType tripType)
     {
         var queryParams = HttpUtility.ParseQueryString(string.Empty);
         
+        if (tripType == TripType.MultiCity)
+        {
+            throw new InvalidOperationException("Multi-city flights should use POST request, not GET");
+        }
+        
+        if (string.IsNullOrEmpty(request.OriginLocationCode))
+        {
+            throw new ArgumentException("OriginLocationCode is required for one-way and round-trip flights");
+        }
+        
+        if (string.IsNullOrEmpty(request.DestinationLocationCode))
+        {
+            throw new ArgumentException("DestinationLocationCode is required for one-way and round-trip flights");
+        }
+        
+        if (!request.DepartureDate.HasValue)
+        {
+            throw new ArgumentException("DepartureDate is required for one-way and round-trip flights");
+        }
+        
         queryParams["originLocationCode"] = request.OriginLocationCode;
         queryParams["destinationLocationCode"] = request.DestinationLocationCode;
-        queryParams["departureDate"] = request.DepartureDate.ToString("yyyy-MM-dd");
+        queryParams["departureDate"] = request.DepartureDate.Value.ToString("yyyy-MM-dd");
         
-        if (request.ReturnDate.HasValue)
+        if (tripType == TripType.RoundTrip && request.ReturnDate.HasValue)
         {
             queryParams["returnDate"] = request.ReturnDate.Value.ToString("yyyy-MM-dd");
         }

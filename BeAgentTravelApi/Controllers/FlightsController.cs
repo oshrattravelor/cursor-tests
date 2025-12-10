@@ -21,6 +21,7 @@ public class FlightsController : ControllerBase
 
     /// <summary>
     /// Search for flights using Amadeus GDS
+    /// Supports one-way, round-trip, and multi-city flights
     /// </summary>
     /// <param name="request">Flight search parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
@@ -35,17 +36,60 @@ public class FlightsController : ControllerBase
     {
         try
         {
+            // Validate request
+            var validationError = ValidateRequest(request);
+            if (validationError != null)
+            {
+                return BadRequest(new { error = validationError });
+            }
+
+            var tripType = request.GetTripType();
+            
             _logger.LogInformation(
-                "Searching flights from {Origin} to {Destination} on {DepartureDate}",
-                request.OriginLocationCode,
-                request.DestinationLocationCode,
-                request.DepartureDate);
+                "Searching {TripType} flights - Adults: {Adults}, Children: {Children}, Infants: {Infants}",
+                tripType,
+                request.Adults,
+                request.Children ?? 0,
+                request.Infants ?? 0);
+
+            if (tripType == TripType.MultiCity && request.Segments != null)
+            {
+                _logger.LogInformation(
+                    "Multi-city search with {SegmentCount} segments",
+                    request.Segments.Count);
+                foreach (var segment in request.Segments)
+                {
+                    _logger.LogInformation(
+                        "Segment: {Origin} -> {Destination} on {Date}",
+                        segment.OriginLocationCode,
+                        segment.DestinationLocationCode,
+                        segment.DepartureDate);
+                }
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Searching flights from {Origin} to {Destination} on {DepartureDate}",
+                    request.OriginLocationCode,
+                    request.DestinationLocationCode,
+                    request.DepartureDate);
+                
+                if (tripType == TripType.RoundTrip && request.ReturnDate.HasValue)
+                {
+                    _logger.LogInformation("Return date: {ReturnDate}", request.ReturnDate.Value);
+                }
+            }
 
             var result = await _flightSearchService.SearchFlightsAsync(request, cancellationToken);
 
-            _logger.LogInformation("Found {Count} flight offers", result.Data.Count);
+            _logger.LogInformation("Found {Count} flight offers", result.Data?.Count ?? 0);
 
             return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters");
+            return BadRequest(new { error = ex.Message });
         }
         catch (HttpRequestException ex)
         {
@@ -61,29 +105,149 @@ public class FlightsController : ControllerBase
         }
     }
 
+    private string? ValidateRequest(FlightSearchRequest request)
+    {
+        var tripType = request.GetTripType();
+
+        if (tripType == TripType.MultiCity)
+        {
+            if (request.Segments == null || request.Segments.Count == 0)
+            {
+                return "Segments are required for multi-city flights";
+            }
+            
+            if (request.Segments.Count < 2)
+            {
+                return "Multi-city flights require at least 2 segments";
+            }
+            
+            foreach (var segment in request.Segments)
+            {
+                if (string.IsNullOrWhiteSpace(segment.OriginLocationCode))
+                {
+                    return "OriginLocationCode is required for all segments";
+                }
+                
+                if (string.IsNullOrWhiteSpace(segment.DestinationLocationCode))
+                {
+                    return "DestinationLocationCode is required for all segments";
+                }
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(request.OriginLocationCode))
+            {
+                return "OriginLocationCode is required";
+            }
+            
+            if (string.IsNullOrWhiteSpace(request.DestinationLocationCode))
+            {
+                return "DestinationLocationCode is required";
+            }
+            
+            if (!request.DepartureDate.HasValue)
+            {
+                return "DepartureDate is required";
+            }
+            
+            if (tripType == TripType.RoundTrip && !request.ReturnDate.HasValue)
+            {
+                return "ReturnDate is required for round-trip flights";
+            }
+            
+            if (request.ReturnDate.HasValue && request.ReturnDate.Value <= request.DepartureDate.Value)
+            {
+                return "ReturnDate must be after DepartureDate";
+            }
+        }
+
+        if (request.Adults < 1)
+        {
+            return "At least one adult passenger is required";
+        }
+
+        return null;
+    }
+
     /// <summary>
-    /// Get a sample flight search request for testing
+    /// Get sample flight search requests for testing (one-way, round-trip, and multi-city)
     /// </summary>
     [HttpGet("sample-request")]
-    [ProducesResponseType(typeof(FlightSearchRequest), StatusCodes.Status200OK)]
-    public IActionResult GetSampleRequest()
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public IActionResult GetSampleRequest([FromQuery] string? tripType = "roundtrip")
     {
-        var sample = new FlightSearchRequest
+        var tripTypeLower = tripType?.ToLowerInvariant();
+        
+        if (tripTypeLower == "oneway" || tripTypeLower == "one-way")
         {
-            OriginLocationCode = "NYC",
-            DestinationLocationCode = "LAX",
-            DepartureDate = DateTime.Today.AddDays(30),
-            ReturnDate = DateTime.Today.AddDays(37),
-            Adults = 1,
-            Children = 0,
-            Infants = 0,
-            TravelClass = "ECONOMY",
-            NonStop = false,
-            CurrencyCode = "USD",
-            MaxResults = 10
-        };
-
-        return Ok(sample);
+            var sample = new FlightSearchRequest
+            {
+                TripType = TripType.OneWay,
+                OriginLocationCode = "NYC",
+                DestinationLocationCode = "LAX",
+                DepartureDate = DateTime.Today.AddDays(30),
+                Adults = 1,
+                TravelClass = "ECONOMY",
+                NonStop = false,
+                CurrencyCode = "USD",
+                MaxResults = 10
+            };
+            return Ok(new { tripType = "OneWay", sample });
+        }
+        else if (tripTypeLower == "multicity" || tripTypeLower == "multi-city")
+        {
+            var sample = new FlightSearchRequest
+            {
+                TripType = TripType.MultiCity,
+                Segments = new List<FlightSegment>
+                {
+                    new FlightSegment
+                    {
+                        OriginLocationCode = "NYC",
+                        DestinationLocationCode = "LAX",
+                        DepartureDate = DateTime.Today.AddDays(30)
+                    },
+                    new FlightSegment
+                    {
+                        OriginLocationCode = "LAX",
+                        DestinationLocationCode = "SFO",
+                        DepartureDate = DateTime.Today.AddDays(35)
+                    },
+                    new FlightSegment
+                    {
+                        OriginLocationCode = "SFO",
+                        DestinationLocationCode = "NYC",
+                        DepartureDate = DateTime.Today.AddDays(40)
+                    }
+                },
+                Adults = 1,
+                TravelClass = "ECONOMY",
+                CurrencyCode = "USD",
+                MaxResults = 10
+            };
+            return Ok(new { tripType = "MultiCity", sample });
+        }
+        else
+        {
+            // Default: Round-trip
+            var sample = new FlightSearchRequest
+            {
+                TripType = TripType.RoundTrip,
+                OriginLocationCode = "NYC",
+                DestinationLocationCode = "LAX",
+                DepartureDate = DateTime.Today.AddDays(30),
+                ReturnDate = DateTime.Today.AddDays(37),
+                Adults = 1,
+                Children = 0,
+                Infants = 0,
+                TravelClass = "ECONOMY",
+                NonStop = false,
+                CurrencyCode = "USD",
+                MaxResults = 10
+            };
+            return Ok(new { tripType = "RoundTrip", sample });
+        }
     }
 }
 

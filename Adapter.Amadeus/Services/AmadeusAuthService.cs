@@ -16,18 +16,18 @@ public class AmadeusAuthService : IAmadeusAuthService
     {
         _httpClient = httpClient;
         _settings = settings.Value;
-        
-        var baseUrl = _settings.IsProduction 
-            ? "https://api.amadeus.com" 
+
+        var baseUrl = _settings.IsProduction
+            ? "https://api.amadeus.com"
             : "https://test.api.amadeus.com";
-        
+
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
 
     public async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
         await _semaphore.WaitAsync(cancellationToken);
-        
+
         try
         {
             // Check if we have a valid cached token
@@ -41,11 +41,12 @@ public class AmadeusAuthService : IAmadeusAuthService
             {
                 new KeyValuePair<string, string>("grant_type", "client_credentials"),
                 new KeyValuePair<string, string>("client_id", _settings.ApiKey),
-                new KeyValuePair<string, string>("client_secret", _settings.ApiSecret)
+                new KeyValuePair<string, string>("client_secret", _settings.ApiSecret),
+                new KeyValuePair<string, string>("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}")
             });
 
             var response = await _httpClient.PostAsync("/v1/security/oauth2/token", requestContent, cancellationToken);
-            
+
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
