@@ -5,8 +5,20 @@
 ### Health Check (if you add one)
 GET {{baseUrl}}/health
 
-### Get Sample Flight Search Request
+### Get Sample Flight Search Request (Round-Trip - Default)
 GET {{apiUrl}}/flights/sample-request
+Accept: application/json
+
+###
+
+### Get Sample One-Way Request
+GET {{apiUrl}}/flights/sample-request?tripType=oneway
+Accept: application/json
+
+###
+
+### Get Sample Multi-City Request
+GET {{apiUrl}}/flights/sample-request?tripType=multicity
 Accept: application/json
 
 ###
@@ -16,6 +28,7 @@ POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "OneWay",
   "originLocationCode": "NYC",
   "destinationLocationCode": "LAX",
   "departureDate": "2024-12-15",
@@ -33,6 +46,7 @@ POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "RoundTrip",
   "originLocationCode": "JFK",
   "destinationLocationCode": "LHR",
   "departureDate": "2024-12-15",
@@ -47,11 +61,74 @@ Content-Type: application/json
 
 ###
 
-### Search Non-Stop Flights Only
+### Search Multi-City Flights (3 segments: NYC -> LAX -> SFO -> NYC)
 POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "MultiCity",
+  "segments": [
+    {
+      "originLocationCode": "NYC",
+      "destinationLocationCode": "LAX",
+      "departureDate": "2024-12-15"
+    },
+    {
+      "originLocationCode": "LAX",
+      "destinationLocationCode": "SFO",
+      "departureDate": "2024-12-20"
+    },
+    {
+      "originLocationCode": "SFO",
+      "destinationLocationCode": "NYC",
+      "departureDate": "2024-12-25"
+    }
+  ],
+  "adults": 2,
+  "travelClass": "ECONOMY",
+  "currencyCode": "USD",
+  "maxResults": 10
+}
+
+###
+
+### Search Multi-City Flights (Europe Tour: PAR -> MAD -> ROM -> PAR)
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "tripType": "MultiCity",
+  "segments": [
+    {
+      "originLocationCode": "PAR",
+      "destinationLocationCode": "MAD",
+      "departureDate": "2024-12-10"
+    },
+    {
+      "originLocationCode": "MAD",
+      "destinationLocationCode": "ROM",
+      "departureDate": "2024-12-15"
+    },
+    {
+      "originLocationCode": "ROM",
+      "destinationLocationCode": "PAR",
+      "departureDate": "2024-12-20"
+    }
+  ],
+  "adults": 1,
+  "travelClass": "ECONOMY",
+  "currencyCode": "EUR",
+  "maxResults": 15
+}
+
+###
+
+### Search One-Way Non-Stop Flights Only
+POST {{apiUrl}}/flights/search
+Content-Type: application/json
+
+{
+  "tripType": "OneWay",
   "originLocationCode": "LAX",
   "destinationLocationCode": "SFO",
   "departureDate": "2024-12-01",
@@ -64,11 +141,12 @@ Content-Type: application/json
 
 ###
 
-### Search Flights with Infants
+### Search Round-Trip Flights with Infants
 POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "RoundTrip",
   "originLocationCode": "ORD",
   "destinationLocationCode": "MIA",
   "departureDate": "2024-12-20",
@@ -82,11 +160,12 @@ Content-Type: application/json
 
 ###
 
-### Search Premium/First Class Flights
+### Search Round-Trip Premium/First Class Flights
 POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "RoundTrip",
   "originLocationCode": "DXB",
   "destinationLocationCode": "SIN",
   "departureDate": "2024-12-10",
@@ -99,11 +178,12 @@ Content-Type: application/json
 
 ###
 
-### Search International Flights (Europe)
+### Search Round-Trip International Flights (Europe)
 POST {{apiUrl}}/flights/search
 Content-Type: application/json
 
 {
+  "tripType": "RoundTrip",
   "originLocationCode": "PAR",
   "destinationLocationCode": "MAD",
   "departureDate": "2024-11-25",
