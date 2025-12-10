@@ -11,16 +11,19 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
     private readonly HttpClient _httpClient;
     private readonly IAmadeusAuthService _authService;
     private readonly AmadeusSettings _settings;
+    private readonly IHttpRequestLogger _requestLogger;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public AmadeusFlightOrderService(
         HttpClient httpClient,
         IAmadeusAuthService authService,
-        IOptions<AmadeusSettings> settings)
+        IOptions<AmadeusSettings> settings,
+        IHttpRequestLogger requestLogger)
     {
         _httpClient = httpClient;
         _authService = authService;
         _settings = settings.Value;
+        _requestLogger = requestLogger;
 
         var baseUrl = _settings.IsProduction
             ? "https://api.amadeus.com"
@@ -181,8 +184,26 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
 
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightOrder",
+            "/v1/booking/flight-orders",
+            "POST",
+            jsonContent,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
         {

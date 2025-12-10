@@ -15,4 +15,8 @@
     <ProjectReference Include="..\Adapter.Amadeus\Adapter.Amadeus.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="logs\amadeus-requests\" />
+  </ItemGroup>
+
 </Project>

@@ -12,16 +12,19 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
     private readonly HttpClient _httpClient;
     private readonly IAmadeusAuthService _authService;
     private readonly AmadeusSettings _settings;
+    private readonly IHttpRequestLogger _requestLogger;
     private readonly JsonSerializerOptions _jsonOptions;
 
     public AmadeusFlightSearchService(
         HttpClient httpClient, 
         IAmadeusAuthService authService,
-        IOptions<AmadeusSettings> settings)
+        IOptions<AmadeusSettings> settings,
+        IHttpRequestLogger requestLogger)
     {
         _httpClient = httpClient;
         _authService = authService;
         _settings = settings.Value;
+        _requestLogger = requestLogger;
         
         var baseUrl = _settings.IsProduction 
             ? "https://api.amadeus.com" 
@@ -59,18 +62,51 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             httpRequest = BuildSimpleRequest(request, tripType, accessToken);
         }
 
+        // Capture request body before sending (for logging)
+        string? requestBody = null;
+        if (httpRequest.Content != null)
+        {
+            requestBody = await httpRequest.Content.ReadAsStringAsync(cancellationToken);
+            // Recreate content since we consumed it
+            httpRequest.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
+        }
+        else if (httpRequest.RequestUri != null)
+        {
+            // For GET requests, the body is in the query string
+            requestBody = httpRequest.RequestUri.ToString();
+        }
+
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        var endpoint = httpRequest.RequestUri?.PathAndQuery ?? "/v2/shopping/flight-offers";
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightSearch",
+            endpoint,
+            httpRequest.Method.Method,
+            requestBody,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException(
-                $"Flight search failed. Status: {response.StatusCode}, Error: {errorContent}");
+                $"Flight search failed. Status: {response.StatusCode}, Error: {responseContent}");
         }
 
         // Parse response
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
         var flightSearchResponse = JsonSerializer.Deserialize<FlightSearchResponse>(
             responseContent, 
             new JsonSerializerOptions 
@@ -289,18 +325,39 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         };
         httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
 
+        // Capture request body before sending (for logging)
+        string? requestBodyForLogging = jsonContent;
+
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightPricing",
+            requestUri,
+            "POST",
+            requestBodyForLogging,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
             throw new HttpRequestException(
-                $"Flight offers pricing failed. Status: {response.StatusCode}, Error: {errorContent}");
+                $"Flight offers pricing failed. Status: {response.StatusCode}, Error: {responseContent}");
         }
 
         // Parse response
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
         var pricingResponse = JsonSerializer.Deserialize<FlightOffersPricingResponse>(
             responseContent, 
             new JsonSerializerOptions 

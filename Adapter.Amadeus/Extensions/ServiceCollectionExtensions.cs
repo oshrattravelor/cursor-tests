@@ -16,6 +16,9 @@ public static class ServiceCollectionExtensions
         // Register auth service with its own HttpClient
         services.AddHttpClient<IAmadeusAuthService, AmadeusAuthService>();
         
+        // Register HTTP request logger
+        services.AddSingleton<IHttpRequestLogger, HttpRequestLogger>();
+        
         // Register flight search service with its own HttpClient
         services.AddHttpClient<IAmadeusFlightSearchService, AmadeusFlightSearchService>();
         
