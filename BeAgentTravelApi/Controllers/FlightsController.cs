@@ -1,4 +1,5 @@
 using System.Net.Http;
+using Adapter.Amadeus.Models.FlightOrder;
 using Adapter.Amadeus.Models.FlightSearch;
 using Adapter.Amadeus.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -10,13 +11,16 @@ namespace BeAgentTravelApi.Controllers;
 public class FlightsController : ControllerBase
 {
     private readonly IAmadeusFlightSearchService _flightSearchService;
+    private readonly IAmadeusFlightOrderService _flightOrderService;
     private readonly ILogger<FlightsController> _logger;
 
     public FlightsController(
         IAmadeusFlightSearchService flightSearchService,
+        IAmadeusFlightOrderService flightOrderService,
         ILogger<FlightsController> logger)
     {
         _flightSearchService = flightSearchService;
+        _flightOrderService = flightOrderService;
         _logger = logger;
     }
 
@@ -311,6 +315,78 @@ public class FlightsController : ControllerBase
         {
             _logger.LogError(ex, "Unexpected error occurred while pricing flight offers");
             return StatusCode(StatusCodes.Status500InternalServerError, 
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Create a flight order (booking) using confirmed flight offers and traveler information
+    /// This endpoint should be called after pricing flight offers to create a booking.
+    /// </summary>
+    /// <param name="request">Flight order request containing flight offers, travelers, and contact information</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with booking confirmation</returns>
+    [HttpPost("order")]
+    [ProducesResponseType(typeof(FlightOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateFlightOrder(
+        [FromBody] FlightOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (request?.Data == null)
+            {
+                return BadRequest(new { error = "Request data is required" });
+            }
+
+            if (request.Data.FlightOffers == null || request.Data.FlightOffers.Count == 0)
+            {
+                return BadRequest(new { error = "At least one flight offer is required" });
+            }
+
+            if (request.Data.Travelers == null || request.Data.Travelers.Count == 0)
+            {
+                return BadRequest(new { error = "At least one traveler is required" });
+            }
+
+            _logger.LogInformation(
+                "Creating flight order for {TravelerCount} travelers with {OfferCount} flight offers",
+                request.Data.Travelers.Count,
+                request.Data.FlightOffers.Count);
+
+            var result = await _flightOrderService.CreateFlightOrderAsync(request, cancellationToken);
+
+            _logger.LogInformation(
+                "Flight order created successfully. Order ID: {OrderId}",
+                result.Data?.Id ?? "Unknown");
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Flight order created with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for flight order");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while creating flight order");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while creating flight order");
+            return StatusCode(StatusCodes.Status500InternalServerError,
                 new { error = "An unexpected error occurred", details = ex.Message });
         }
     }

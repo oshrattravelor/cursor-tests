@@ -19,6 +19,9 @@ public static class ServiceCollectionExtensions
         // Register flight search service with its own HttpClient
         services.AddHttpClient<IAmadeusFlightSearchService, AmadeusFlightSearchService>();
         
+        // Register flight order service with its own HttpClient
+        services.AddHttpClient<IAmadeusFlightOrderService, AmadeusFlightOrderService>();
+        
         return services;
     }
 }

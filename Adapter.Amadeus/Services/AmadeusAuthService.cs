@@ -19,7 +19,7 @@ public class AmadeusAuthService : IAmadeusAuthService
 
         var baseUrl = _settings.IsProduction
             ? "https://api.amadeus.com"
-            : "https://test.api.amadeus.com";
+            : "https://test.travel.api.amadeus.com";
 
         _httpClient.BaseAddress = new Uri(baseUrl);
     }
