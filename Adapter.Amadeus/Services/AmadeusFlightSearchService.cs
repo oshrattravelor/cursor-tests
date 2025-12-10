@@ -280,7 +280,10 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/shopping/flight-offers/pricing")
+        // Add query parameter to include detailed fare rules
+        var requestUri = "/v1/shopping/flight-offers/pricing?include=detailed-fare-rules";
+        
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri)
         {
             Content = content
         };

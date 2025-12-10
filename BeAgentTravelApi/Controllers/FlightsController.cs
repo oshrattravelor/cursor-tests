@@ -253,7 +253,8 @@ public class FlightsController : ControllerBase
 
     /// <summary>
     /// Get confirmed pricing and detailed fare rules for flight offers
-    /// This endpoint should be called after a flight search to get final pricing and fare conditions
+    /// This endpoint should be called after a flight search to get final pricing and fare conditions.
+    /// The request automatically includes detailed fare rules (include=detailed-fare-rules parameter).
     /// </summary>
     /// <param name="request">Request containing flight offers to price</param>
     /// <param name="cancellationToken">Cancellation token</param>
