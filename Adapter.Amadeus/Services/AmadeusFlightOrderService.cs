@@ -176,7 +176,7 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
         var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v2/booking/flight-orders")
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/booking/flight-orders")
         {
             Content = content
         };
@@ -199,7 +199,7 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
 
         await _requestLogger.LogRequestResponseAsync(
             "FlightOrder",
-            "/v2/booking/flight-orders",
+            "/v1/booking/flight-orders",
             "POST",
             jsonContent,
             headers,

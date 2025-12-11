@@ -322,7 +322,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
         // Add query parameter to include detailed fare rules
-        var requestUri = "/v2/shopping/flight-offers/pricing?include=detailed-fare-rules";
+        var requestUri = "/v1/shopping/flight-offers/pricing?include=detailed-fare-rules";
         
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri)
         {

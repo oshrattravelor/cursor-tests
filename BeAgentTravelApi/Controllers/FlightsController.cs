@@ -205,8 +205,8 @@ public class FlightsController : ControllerBase
             var sample = new FlightSearchRequest
             {
                 TripType = TripType.MultiCity,
-                Segments = new List<FlightSegment>
-                {
+                Segments =
+                [
                     new FlightSegment
                     {
                         OriginLocationCode = "NYC",
@@ -225,7 +225,7 @@ public class FlightsController : ControllerBase
                         DestinationLocationCode = "NYC",
                         DepartureDate = DateTime.Today.AddDays(40)
                     }
-                },
+                ],
                 Adults = 1,
                 TravelClass = "ECONOMY",
                 CurrencyCode = "USD",
@@ -666,7 +666,7 @@ public class FlightsController : ControllerBase
 
             // Step 4: Call price
             var pricingResult = await _flightSearchService.PriceFlightOffersAsync(
-                new List<FlightOffer> { selectedOffer },
+                [selectedOffer],
                 cancellationToken);
 
             if (pricingResult.Data?.FlightOffers == null || pricingResult.Data.FlightOffers.Count == 0)
@@ -687,9 +687,17 @@ public class FlightsController : ControllerBase
                 Data = new FlightOrderData
                 {
                     Type = "flight-order",
-                    FlightOffers = new List<FlightOffer> { pricedOffer },
+                    FlightOffers = [pricedOffer],
                     Travelers = CreateDefaultTravelers(searchRequest.Adults, request?.TravelerInfo),
-                    Contacts = CreateDefaultContacts(request?.ContactInfo)
+                    Contacts = CreateDefaultContacts(request?.ContactInfo),
+                    FormOfPayment = new FormOfPayment
+                    {
+                        Other = new OtherFormOfPayment
+                        {
+                            Method = "CASH",
+                            FlightOfferIds = [pricedOffer.Id]
+                        }
+                    }
                 }
             };
 
@@ -757,15 +765,15 @@ public class FlightsController : ControllerBase
                 Contact = customInfo?.EmailAddress != null ? new TravelerContact
                 {
                     EmailAddress = customInfo.EmailAddress,
-                    Phones = customInfo.PhoneNumber != null ? new List<Phone>
-                    {
+                    Phones = customInfo.PhoneNumber != null ?
+                    [
                         new Phone
                         {
                             DeviceType = "MOBILE",
                             CountryCallingCode = customInfo.CountryCallingCode ?? "1",
                             Number = customInfo.PhoneNumber
                         }
-                    } : null
+                    ] : null
                 } : null
             });
         }
@@ -776,8 +784,8 @@ public class FlightsController : ControllerBase
     private List<Contact>? CreateDefaultContacts(ContactInfoRequest? customInfo = null)
     {
         // Always create a contact with defaults if customInfo is null or email is not provided
-        return new List<Contact>
-        {
+        return
+        [
             new Contact
             {
                 AddresseeName = new ContactName
@@ -785,19 +793,26 @@ public class FlightsController : ControllerBase
                     FirstName = customInfo?.FirstName ?? "John",
                     LastName = customInfo?.LastName ?? "Doe"
                 },
-                EmailAddress = customInfo?.EmailAddress ?? "test@example.com",
-                Phones = customInfo?.PhoneNumber != null ? new List<Phone>
-                {
+                EmailAddress = customInfo?.EmailAddress ?? "oshrat@travelor.com",
+                Phones = customInfo?.PhoneNumber != null ?
+                [
                     new Phone
                     {
                         DeviceType = "MOBILE",
                         CountryCallingCode = customInfo.CountryCallingCode ?? "1",
                         Number = customInfo.PhoneNumber
                     }
-                } : null,
-                Purpose = "STANDARD"
+                ] : null,
+                Purpose = "STANDARD",
+                Address = new ContactAddress
+                {
+                    CityName = "Tel Aviv",
+                    CountryCode = "IL",
+                    Lines = ["Line1"],
+                    PostalCode = "12345"
+                }
             }
-        };
+        ];
     }
 }
 
