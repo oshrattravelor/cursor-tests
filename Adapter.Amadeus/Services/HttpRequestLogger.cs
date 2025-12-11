@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Adapter.Amadeus.Configuration;
 using Microsoft.Extensions.Options;
@@ -50,6 +51,7 @@ public class HttpRequestLogger : IHttpRequestLogger
             var fileName = $"{timestamp}_{serviceName}_{sanitizedEndpoint}.json";
             var filePath = Path.Combine(_logsDirectory, fileName);
 
+          
             var logEntry = new
             {
                 timestamp = DateTime.UtcNow.ToString("O"),
@@ -59,7 +61,7 @@ public class HttpRequestLogger : IHttpRequestLogger
                 request = new
                 {
                     headers = requestHeaders,
-                    body = isFormEncoded ? requestBody : TryParseJson(requestBody)
+                    body = requestBody != null ?  TryParseJson(requestBody) : null
                 },
                 response = new
                 {

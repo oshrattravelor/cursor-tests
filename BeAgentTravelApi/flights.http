@@ -211,3 +211,67 @@ Content-Type: application/json
 
 ###
 
+### Auto-Book Flight (Automated Booking Flow)
+### This endpoint automatically:
+### 1. Creates a simple request (uses defaults if not provided)
+### 2. Searches for flights
+### 3. Selects the first result
+### 4. Prices the selected flight
+### 5. Creates an order
+### All parameters are optional - uses defaults if not provided
+POST {{apiUrl}}/flights/auto-book
+Content-Type: application/json
+
+{
+  "originLocationCode": "NYC",
+  "destinationLocationCode": "LAX",
+  "departureDate": "2024-12-15",
+  "adults": 1,
+  "travelClass": "ECONOMY",
+  "currencyCode": "USD",
+  "travelerInfo": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "dateOfBirth": "1990-01-01",
+    "gender": "MALE",
+    "emailAddress": "john.doe@example.com",
+    "phoneNumber": "1234567890",
+    "countryCallingCode": "1"
+  },
+  "contactInfo": {
+    "firstName": "John",
+    "lastName": "Doe",
+    "emailAddress": "john.doe@example.com",
+    "phoneNumber": "1234567890",
+    "countryCallingCode": "1"
+  }
+}
+
+###
+
+### Auto-Book Flight with Minimal Parameters (Uses Defaults)
+### This will use default values for all optional parameters
+POST {{apiUrl}}/flights/auto-book
+Content-Type: application/json
+
+{}
+
+###
+
+### Auto-Book Round-Trip Flight
+POST {{apiUrl}}/flights/auto-book
+Content-Type: application/json
+
+{
+  "tripType": "RoundTrip",
+  "originLocationCode": "JFK",
+  "destinationLocationCode": "LHR",
+  "departureDate": "2024-12-15",
+  "returnDate": "2024-12-22",
+  "adults": 1,
+  "travelClass": "ECONOMY",
+  "currencyCode": "USD"
+}
+
+###
+

@@ -61,7 +61,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             // One-way and round-trip use GET with query parameters
             httpRequest = BuildSimpleRequest(request, tripType, accessToken);
         }
-
+ 
         // Capture request body before sending (for logging)
         string? requestBody = null;
         if (httpRequest.Content != null)
@@ -70,11 +70,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             // Recreate content since we consumed it
             httpRequest.Content = new StringContent(requestBody, Encoding.UTF8, "application/json");
         }
-        else if (httpRequest.RequestUri != null)
-        {
-            // For GET requests, the body is in the query string
-            requestBody = httpRequest.RequestUri.ToString();
-        }
+      
 
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
@@ -90,7 +86,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             }
         }
 
-        var endpoint = httpRequest.RequestUri?.PathAndQuery ?? "/v2/shopping/flight-offers";
+        var endpoint = httpRequest.RequestUri?.AbsoluteUri;
         await _requestLogger.LogRequestResponseAsync(
             "FlightSearch",
             endpoint,
@@ -98,7 +94,8 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             requestBody,
             headers,
             responseContent,
-            (int)response.StatusCode);
+            (int)response.StatusCode,
+            isFormEncoded: true);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -132,7 +129,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Get, requestUri);
         httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
-
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
         return httpRequest;
     }
 
@@ -186,7 +183,7 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
             Content = content
         };
         httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
-
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
         return httpRequest;
     }
 
@@ -317,13 +314,14 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
         // Add query parameter to include detailed fare rules
-        var requestUri = "/v1/shopping/flight-offers/pricing?include=detailed-fare-rules";
+        var requestUri = "/v2/shopping/flight-offers/pricing?include=detailed-fare-rules";
         
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri)
         {
             Content = content
         };
         httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
 
         // Capture request body before sending (for logging)
         string? requestBodyForLogging = jsonContent;

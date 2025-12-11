@@ -176,11 +176,12 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
         var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
         var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/booking/flight-orders")
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v2/booking/flight-orders")
         {
             Content = content
         };
         httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
 
         // Send request
         var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
@@ -198,7 +199,7 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
 
         await _requestLogger.LogRequestResponseAsync(
             "FlightOrder",
-            "/v1/booking/flight-orders",
+            "/v2/booking/flight-orders",
             "POST",
             jsonContent,
             headers,

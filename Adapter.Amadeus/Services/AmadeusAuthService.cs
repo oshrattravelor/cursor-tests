@@ -46,8 +46,7 @@ public class AmadeusAuthService : IAmadeusAuthService
             {
                 new KeyValuePair<string, string>("grant_type", "client_credentials"),
                 new KeyValuePair<string, string>("client_id", _settings.ApiKey),
-                new KeyValuePair<string, string>("client_secret", _settings.ApiSecret),
-                new KeyValuePair<string, string>("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}")
+                new KeyValuePair<string, string>("client_secret", _settings.ApiSecret)
             };
             
             var requestContent = new FormUrlEncodedContent(formData);
@@ -68,7 +67,7 @@ public class AmadeusAuthService : IAmadeusAuthService
 
             await _requestLogger.LogRequestResponseAsync(
                 "Auth",
-                "/v1/security/oauth2/token",
+                $"{_httpClient.BaseAddress?.AbsoluteUri}v1/security/oauth2/token",
                 "POST",
                 requestBody,
                 headers,
