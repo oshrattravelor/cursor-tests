@@ -16,5 +16,15 @@ public interface IAmadeusFlightOrderService
     Task<FlightOrderResponse> CreateFlightOrderAsync(
         FlightOrderRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Issue tickets for an existing flight order
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to issue tickets for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with issued ticket information</returns>
+    Task<FlightOrderResponse> IssueFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default);
 }
 

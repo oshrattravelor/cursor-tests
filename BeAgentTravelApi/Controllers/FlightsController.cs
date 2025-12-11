@@ -392,6 +392,76 @@ public class FlightsController : ControllerBase
     }
 
     /// <summary>
+    /// Issue tickets for an existing flight order
+    /// This endpoint should be called after creating a flight order to issue the tickets.
+    /// Note: Some orders may have tickets issued automatically during creation if payment is provided.
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to issue tickets for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with issued ticket information</returns>
+    [HttpPatch("order/{orderId}/issue")]
+    [ProducesResponseType(typeof(FlightOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> IssueFlightOrder(
+        [FromRoute] string orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                return BadRequest(new { error = "Order ID is required" });
+            }
+
+            _logger.LogInformation(
+                "Issuing tickets for flight order: {OrderId}",
+                orderId);
+
+            var result = await _flightOrderService.IssueFlightOrderAsync(orderId, cancellationToken);
+
+            _logger.LogInformation(
+                "Tickets issued successfully for order ID: {OrderId}",
+                orderId);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Ticket issuance completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for ticket issuance");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while issuing tickets");
+            
+            // Check if it's a 404 (order not found)
+            if (ex.Message.Contains("404") || ex.Message.Contains("Not Found"))
+            {
+                return NotFound(new { error = "Flight order not found", details = ex.Message });
+            }
+            
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while issuing tickets");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Automated flight booking endpoint that creates a simple request, searches flights,
     /// selects the first result, prices it, and creates an order automatically
     /// </summary>

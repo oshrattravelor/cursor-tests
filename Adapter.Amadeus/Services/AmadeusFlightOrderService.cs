@@ -227,5 +227,89 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
 
         return orderResponse;
     }
+
+    public async Task<FlightOrderResponse> IssueFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("Order ID is required", nameof(orderId));
+        }
+
+        // Get access token
+        var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
+
+        // Build the request body for ticket issuance
+        var requestBody = new
+        {
+            data = new
+            {
+                type = "flight-order",
+                id = orderId,
+                operations = new[]
+                {
+                    new
+                    {
+                        op = "ISSUE_TICKET"
+                    }
+                }
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Patch, $"/v2/booking/flight-orders/{orderId}")
+        {
+            Content = content
+        };
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
+
+        // Send request
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightOrderIssue",
+            $"/v2/booking/flight-orders/{orderId}",
+            "PATCH",
+            jsonContent,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Flight order ticket issuance failed. Status: {response.StatusCode}, Error: {responseContent}");
+        }
+
+        // Parse response
+        var orderResponse = JsonSerializer.Deserialize<FlightOrderResponse>(
+            responseContent,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+        if (orderResponse == null)
+        {
+            throw new InvalidOperationException("Failed to deserialize flight order response");
+        }
+
+        return orderResponse;
+    }
 }
 
