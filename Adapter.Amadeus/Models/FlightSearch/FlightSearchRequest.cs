@@ -75,6 +75,12 @@ public class FlightSearchRequest
     public int MaxResults { get; set; } = 10;
     
     /// <summary>
+    /// Whether to include branded fare information in the response (default: false)
+    /// When enabled, the response will include branded fare options with additional services
+    /// </summary>
+    public bool IncludeBrandedFares { get; set; } = false;
+    
+    /// <summary>
     /// Determines the trip type based on the request data if not explicitly set
     /// </summary>
     public TripType GetTripType()

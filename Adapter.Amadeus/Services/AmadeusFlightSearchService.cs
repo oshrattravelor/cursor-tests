@@ -172,7 +172,9 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
                         maxNumberOfConnections = 0
                     } : null
                 }
-            }
+            },
+            // Add include parameter for branded fares if requested
+            include = request.IncludeBrandedFares ? new[] { "branded-fares" } : null
         };
 
         var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
@@ -284,6 +286,12 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
         queryParams["nonStop"] = request.NonStop.ToString().ToLower();
         queryParams["currencyCode"] = request.CurrencyCode;
         queryParams["max"] = request.MaxResults.ToString();
+
+        // Add branded fare information if requested
+        if (request.IncludeBrandedFares)
+        {
+            queryParams["include"] = "branded-fares";
+        }
 
         return queryParams.ToString() ?? string.Empty;
     }
