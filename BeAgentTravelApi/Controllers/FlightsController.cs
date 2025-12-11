@@ -462,6 +462,90 @@ public class FlightsController : ControllerBase
     }
 
     /// <summary>
+    /// Create a TST (Transitional Stored Ticket) for an existing flight order
+    /// TST is typically created automatically during order creation, but this endpoint allows explicit TST creation
+    /// for specific travelers and segments.
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to create TST for</param>
+    /// <param name="request">Optional request containing traveler IDs and segment IDs to include in TST</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with TST information</returns>
+    [HttpPatch("order/{orderId}/tst")]
+    [ProducesResponseType(typeof(FlightOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> CreateTST(
+        [FromRoute] string orderId,
+        [FromBody] CreateTSTRequest? request = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                return BadRequest(new { error = "Order ID is required" });
+            }
+
+            _logger.LogInformation(
+                "Creating TST for flight order: {OrderId}",
+                orderId);
+
+            if (request != null && (request.TravelerIds != null || request.SegmentIds != null))
+            {
+                _logger.LogInformation(
+                    "Creating TST with {TravelerCount} travelers and {SegmentCount} segments",
+                    request.TravelerIds?.Count ?? 0,
+                    request.SegmentIds?.Count ?? 0);
+            }
+
+            var result = await _flightOrderService.CreateTSTAsync(
+                orderId,
+                request?.TravelerIds,
+                request?.SegmentIds,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "TST created successfully for order ID: {OrderId}",
+                orderId);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "TST creation completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for TST creation");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while creating TST");
+            
+            // Check if it's a 404 (order not found)
+            if (ex.Message.Contains("404") || ex.Message.Contains("Not Found"))
+            {
+                return NotFound(new { error = "Flight order not found", details = ex.Message });
+            }
+            
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while creating TST");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Automated flight booking endpoint that creates a simple request, searches flights,
     /// selects the first result, prices it, and creates an order automatically
     /// </summary>
@@ -698,5 +782,21 @@ public class ContactInfoRequest
     public string? EmailAddress { get; set; }
     public string? PhoneNumber { get; set; }
     public string? CountryCallingCode { get; set; }
+}
+
+/// <summary>
+/// Request model for creating a TST (Transitional Stored Ticket)
+/// </summary>
+public class CreateTSTRequest
+{
+    /// <summary>
+    /// Optional list of traveler IDs to include in TST. If not provided, all travelers are included.
+    /// </summary>
+    public List<string>? TravelerIds { get; set; }
+
+    /// <summary>
+    /// Optional list of segment IDs to include in TST. If not provided, all segments are included.
+    /// </summary>
+    public List<string>? SegmentIds { get; set; }
 }
 
