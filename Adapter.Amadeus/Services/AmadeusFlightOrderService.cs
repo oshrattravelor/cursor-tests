@@ -412,5 +412,155 @@ public class AmadeusFlightOrderService : IAmadeusFlightOrderService
 
         return orderResponse;
     }
+
+    public async Task<FlightOrderResponse> GetFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("Order ID is required", nameof(orderId));
+        }
+
+        // Get access token
+        var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
+
+        // Note: The get endpoint uses v1, not v2
+        var requestUri = $"/v1/booking/flight-orders/{orderId}";
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
+
+        // Send request
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightOrderGet",
+            requestUri,
+            "GET",
+            null,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Failed to retrieve flight order. Status: {response.StatusCode}, Error: {responseContent}");
+        }
+
+        // Parse response
+        var orderResponse = JsonSerializer.Deserialize<FlightOrderResponse>(
+            responseContent,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+        if (orderResponse == null)
+        {
+            throw new InvalidOperationException("Failed to deserialize flight order response");
+        }
+
+        return orderResponse;
+    }
+
+    public async Task<FlightOrderResponse> DeleteFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            throw new ArgumentException("Order ID is required", nameof(orderId));
+        }
+
+        // Get access token
+        var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
+
+        // Note: The delete endpoint uses v1, not v2
+        var requestUri = $"/v1/booking/flight-orders/{orderId}";
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, requestUri);
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
+
+        // Send request
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightOrderDelete",
+            requestUri,
+            "DELETE",
+            null,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Failed to delete flight order. Status: {response.StatusCode}, Error: {responseContent}");
+        }
+
+        // Parse response - DELETE may return the deleted order or a success message
+        // If response is empty or just success, we'll try to parse as FlightOrderResponse
+        if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Trim() == "{}")
+        {
+            // Return a minimal response indicating success
+            return new FlightOrderResponse
+            {
+                Data = new FlightOrderResponseData
+                {
+                    Id = orderId,
+                    Type = "flight-order"
+                }
+            };
+        }
+
+        var orderResponse = JsonSerializer.Deserialize<FlightOrderResponse>(
+            responseContent,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+        if (orderResponse == null)
+        {
+            // If parsing fails but status was success, return minimal response
+            return new FlightOrderResponse
+            {
+                Data = new FlightOrderResponseData
+                {
+                    Id = orderId,
+                    Type = "flight-order"
+                }
+            };
+        }
+
+        return orderResponse;
+    }
 }
 

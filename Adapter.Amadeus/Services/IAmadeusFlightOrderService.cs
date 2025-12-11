@@ -41,5 +41,27 @@ public interface IAmadeusFlightOrderService
         List<string>? travelerIds = null,
         List<string>? segmentIds = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get details of an existing flight order
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to retrieve</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with order details</returns>
+    Task<FlightOrderResponse> GetFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Delete (cancel) an existing flight order
+    /// Note: Cancellation via API is only allowed while the order is queued for ticketing.
+    /// Once tickets are issued, contact your consolidator directly for cancellation.
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to delete</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with cancellation confirmation</returns>
+    Task<FlightOrderResponse> DeleteFlightOrderAsync(
+        string orderId,
+        CancellationToken cancellationToken = default);
 }
 

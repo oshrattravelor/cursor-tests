@@ -610,6 +610,153 @@ public class FlightsController : ControllerBase
     }
 
     /// <summary>
+    /// Get details of an existing flight order
+    /// Retrieves complete information about a flight order including travelers, flight offers, and associated records.
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to retrieve</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with order details</returns>
+    [HttpGet("order/{orderId}")]
+    [ProducesResponseType(typeof(FlightOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetFlightOrder(
+        [FromRoute] string orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                return BadRequest(new { error = "Order ID is required" });
+            }
+
+            _logger.LogInformation(
+                "Retrieving flight order: {OrderId}",
+                orderId);
+
+            var result = await _flightOrderService.GetFlightOrderAsync(orderId, cancellationToken);
+
+            _logger.LogInformation(
+                "Flight order retrieved successfully. Order ID: {OrderId}",
+                orderId);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Flight order retrieval completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for flight order retrieval");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while retrieving flight order");
+            
+            // Check if it's a 404 (order not found)
+            if (ex.Message.Contains("404") || ex.Message.Contains("Not Found"))
+            {
+                return NotFound(new { error = "Flight order not found", details = ex.Message });
+            }
+            
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while retrieving flight order");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Delete (cancel) an existing flight order
+    /// Note: Cancellation via API is only allowed while the order is queued for ticketing.
+    /// Once tickets are issued, contact your consolidator directly for cancellation.
+    /// </summary>
+    /// <param name="orderId">The ID of the flight order to delete</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Flight order response with cancellation confirmation</returns>
+    [HttpDelete("order/{orderId}")]
+    [ProducesResponseType(typeof(FlightOrderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> DeleteFlightOrder(
+        [FromRoute] string orderId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                return BadRequest(new { error = "Order ID is required" });
+            }
+
+            _logger.LogInformation(
+                "Deleting flight order: {OrderId}",
+                orderId);
+
+            var result = await _flightOrderService.DeleteFlightOrderAsync(orderId, cancellationToken);
+
+            _logger.LogInformation(
+                "Flight order deleted successfully. Order ID: {OrderId}",
+                orderId);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Flight order deletion completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for flight order deletion");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while deleting flight order");
+            
+            // Check if it's a 404 (order not found)
+            if (ex.Message.Contains("404") || ex.Message.Contains("Not Found"))
+            {
+                return NotFound(new { error = "Flight order not found", details = ex.Message });
+            }
+            
+            // Check if it's a cancellation not allowed error (e.g., already ticketed)
+            if (ex.Message.Contains("403") || ex.Message.Contains("Forbidden") || 
+                ex.Message.Contains("cancellation") || ex.Message.Contains("ticketed"))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { error = "Cancellation not allowed. Order may already be ticketed. Contact your consolidator.", details = ex.Message });
+            }
+            
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while deleting flight order");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Automated flight booking endpoint that creates a simple request, searches flights,
     /// selects the first result, prices it, and creates an order automatically
     /// </summary>
