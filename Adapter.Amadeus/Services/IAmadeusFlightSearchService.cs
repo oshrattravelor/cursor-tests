@@ -16,5 +16,16 @@ public interface IAmadeusFlightSearchService
     Task<FlightOffersPricingResponse> PriceFlightOffersAsync(
         List<FlightOffer> flightOffers, 
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get branded fare options and upsell opportunities for flight offers
+    /// This endpoint enhances flight offers with branded fare information and additional service options
+    /// </summary>
+    /// <param name="flightOffers">Flight offers to get upselling options for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Enhanced flight offers with branded fare options and upsell opportunities</returns>
+    Task<FlightOffersUpsellingResponse> UpsellFlightOffersAsync(
+        List<FlightOffer> flightOffers,
+        CancellationToken cancellationToken = default);
 }
 

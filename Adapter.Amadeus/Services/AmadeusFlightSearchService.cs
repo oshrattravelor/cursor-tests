@@ -378,5 +378,88 @@ public class AmadeusFlightSearchService : IAmadeusFlightSearchService
 
         return pricingResponse;
     }
+
+    public async Task<FlightOffersUpsellingResponse> UpsellFlightOffersAsync(
+        List<FlightOffer> flightOffers,
+        CancellationToken cancellationToken = default)
+    {
+        if (flightOffers == null || flightOffers.Count == 0)
+        {
+            throw new ArgumentException("At least one flight offer is required for upselling", nameof(flightOffers));
+        }
+
+        // Get access token
+        var accessToken = await _authService.GetAccessTokenAsync(cancellationToken);
+
+        // Build the request body
+        var requestBody = new FlightOffersUpsellingRequest
+        {
+            Data = new FlightOffersUpsellingData
+            {
+                Type = "flight-offers-upselling",
+                FlightOffers = flightOffers
+            }
+        };
+
+        var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);
+        var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+        // Note: The upselling endpoint uses v1, not v2
+        var requestUri = "/v1/shopping/flight-offers/upselling";
+        
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        {
+            Content = content
+        };
+        httpRequest.Headers.Add("Authorization", $"Bearer {accessToken}");
+        httpRequest.Headers.Add("Ama-Client-Ref", $"TRAVELOR BOOKING ENGINE-PDT-{DateTime.UtcNow.ToString()}");
+
+        // Capture request body before sending (for logging)
+        string? requestBodyForLogging = jsonContent;
+
+        // Send request
+        var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        // Log request and response
+        var headers = new Dictionary<string, string>();
+        if (httpRequest.Headers != null)
+        {
+            foreach (var header in httpRequest.Headers)
+            {
+                headers[header.Key] = string.Join(", ", header.Value);
+            }
+        }
+
+        await _requestLogger.LogRequestResponseAsync(
+            "FlightOffersUpselling",
+            requestUri,
+            "POST",
+            requestBodyForLogging,
+            headers,
+            responseContent,
+            (int)response.StatusCode);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException(
+                $"Flight offers upselling failed. Status: {response.StatusCode}, Error: {responseContent}");
+        }
+
+        // Parse response
+        var upsellingResponse = JsonSerializer.Deserialize<FlightOffersUpsellingResponse>(
+            responseContent, 
+            new JsonSerializerOptions 
+            { 
+                PropertyNameCaseInsensitive = true 
+            });
+
+        if (upsellingResponse == null)
+        {
+            throw new InvalidOperationException("Failed to deserialize flight offers upselling response");
+        }
+
+        return upsellingResponse;
+    }
 }
 

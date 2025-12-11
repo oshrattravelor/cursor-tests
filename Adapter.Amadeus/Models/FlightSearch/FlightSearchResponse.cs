@@ -231,6 +231,12 @@ public class FareDetailsBySegment
     
     [JsonPropertyName("includedCheckedBags")]
     public IncludedCheckedBags? IncludedCheckedBags { get; set; }
+
+    /// <summary>
+    /// Branded fare information for this segment (e.g., "ECOLIGHT", "ECOFLEX", "ECOPLUS")
+    /// </summary>
+    [JsonPropertyName("brandedFare")]
+    public string? BrandedFare { get; set; }
 }
 
 public class IncludedCheckedBags

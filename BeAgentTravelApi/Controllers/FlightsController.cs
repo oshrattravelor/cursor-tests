@@ -320,6 +320,70 @@ public class FlightsController : ControllerBase
     }
 
     /// <summary>
+    /// Get branded fare options and upsell opportunities for flight offers
+    /// This endpoint enhances flight offers with branded fare information and additional service options.
+    /// Use this after a flight search to see available branded fares (e.g., ECOLIGHT, ECOFLEX, ECOPLUS) and upsell opportunities.
+    /// </summary>
+    /// <param name="request">Request containing flight offers to get upselling options for</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Enhanced flight offers with branded fare options and upsell opportunities</returns>
+    [HttpPost("upsell")]
+    [ProducesResponseType(typeof(FlightOffersUpsellingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpsellFlightOffers(
+        [FromBody] FlightOffersUpsellingRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate request
+            if (request?.Data?.FlightOffers == null || request.Data.FlightOffers.Count == 0)
+            {
+                return BadRequest(new { error = "At least one flight offer is required for upselling" });
+            }
+
+            _logger.LogInformation(
+                "Getting upselling options for {Count} flight offers",
+                request.Data.FlightOffers.Count);
+
+            var result = await _flightSearchService.UpsellFlightOffersAsync(
+                request.Data.FlightOffers,
+                cancellationToken);
+
+            _logger.LogInformation(
+                "Upselling completed. Returned {Count} enhanced offers",
+                result.Data?.FlightOffers?.Count ?? 0);
+
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                _logger.LogWarning(
+                    "Upselling completed with {WarningCount} warnings",
+                    result.Warnings.Count);
+            }
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request parameters for upselling");
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error occurred while getting upselling options");
+            return StatusCode(StatusCodes.Status502BadGateway,
+                new { error = "Failed to communicate with Amadeus API", details = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while getting upselling options");
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new { error = "An unexpected error occurred", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Create a flight order (booking) using confirmed flight offers and traveler information
     /// This endpoint should be called after pricing flight offers to create a booking.
     /// </summary>
